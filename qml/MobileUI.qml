@@ -137,22 +137,70 @@ Rectangle {
         }
     }
 
-    Flickable {
+    /* This implements multiple pages next to each other, which can be switched
+      by swiping left or right. */
+
+    Item {
         id: controls
-        boundsBehavior: Flickable.StopAtBounds
-        flickableDirection: Flickable.HorizontalAndVerticalFlick
-        contentWidth: controlsRow.width
-        contentHeight: controlsRow.height
-        clip: true
         anchors {
             top: screen.bottom
             bottom: parent.bottom
             right: parent.right
             left: parent.left
         }
+        clip: true
+
+        // Index of the page in front
+        property int currentIndex: 0
+        // X offset
+        property int currentSwipeOffset: 0
+        // Y offset
+        property int currentScrollOffset: 0
+        // Maximum value of currentIndex
+        property int maxIndex: 1
+
+        MouseArea {
+            anchors.fill: parent
+            property var origin
+            property int moveThreshold: parent.height * 0.2
+
+            onPressed: origin = Qt.point(mouse.x, mouse.y)
+
+            onPositionChanged: {
+                var newSwipeOffset = origin.x - mouse.x;
+                if(parent.currentIndex == 0 && newSwipeOffset < 0)
+                    newSwipeOffset = 0;
+                else if(parent.currentIndex == parent.maxIndex && newSwipeOffset > 0)
+                    newSwipeOffset = 0;
+
+                parent.currentSwipeOffset = newSwipeOffset;
+
+                if(Math.abs(parent.currentSwipeOffset) > moveThreshold)
+                {
+                    var newCurrentIndex = parent.currentIndex + (parent.currentSwipeOffset < 0 ? -1 : 1);
+
+                    origin.x = mouse.x;
+                    parent.currentSwipeOffset = 0;
+                    if(newCurrentIndex >= 0 && newCurrentIndex <= parent.maxIndex)
+                        parent.currentIndex = newCurrentIndex;
+                }
+
+                var maxScrollOffset = mobilecontrol1.height - parent.height;
+                var newScrollOffset = parent.currentScrollOffset + origin.y - mouse.y;
+                parent.currentScrollOffset = Math.max(0, Math.min(newScrollOffset, maxScrollOffset));
+                origin.y = mouse.y;
+            }
+
+            onReleased: parent.currentSwipeOffset = 0;
+        }
 
         Row {
             id: controlsRow
+            x: parent.currentIndex * -width - parent.currentSwipeOffset
+            y: -parent.currentScrollOffset
+            Behavior on x { NumberAnimation { duration: 200 } }
+            width: parent.width
+            height: parent.height
 
             Item {
                 id: mobilecontrol1
@@ -171,15 +219,10 @@ Rectangle {
                 }
             }
 
-            Item {
+            MobileControl2 {
+                id: control2
                 height: mobilecontrol1.height
                 width: controls.width
-
-                MobileControl2 {
-                    id: control2
-                    anchors.fill: parent
-                    //transform: Scale { origin.x: 0; origin.y: 0; xScale: controls.width/keypad.width; yScale: controls.width/keypad.width }
-                }
             }
         }
     }
