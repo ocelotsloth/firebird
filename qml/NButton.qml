@@ -7,12 +7,23 @@ Rectangle {
     property string font_color: "#fff"
     property alias text: label.text
     property bool active: false
+    property bool state: false
     property int keymap_id: 1
 
     border.width: active ? 2 : 1
     border.color: "#888"
     radius: 4
     color: active ? active_color : back_color
+
+    Component.onCompleted: {
+        Emu.registerNButton(keymap_id, this);
+    }
+
+    onStateChanged: {
+        active = state || mouseThing.containsMouse;
+
+        Emu.keypadStateChanged(keymap_id, state);
+    }
 
     Text {
         id: label
@@ -28,16 +39,31 @@ Rectangle {
         horizontalAlignment: Text.AlignHCenter
     }
 
+    MultiPointTouchArea {
+        id: touchThing
+
+        mouseEnabled: true
+        visible: Emu.isMobile()
+        enabled: Emu.isMobile()
+
+        anchors.centerIn: parent
+        width: parent.width * 1.3
+        height: parent.height * 1.3
+
+        onReleased: parent.state = touchThing.touchPoints.length > 0
+        onPressed: parent.state = true
+    }
+
     MouseArea {
+        id: mouseThing
+
         // Pressing the right mouse button "locks" the button in enabled state
         property bool fixable: false
-        property bool state: false
+
+        visible: !Emu.isMobile()
+        enabled: !Emu.isMobile()
 
         preventStealing: true
-
-        Component.onCompleted: {
-            Emu.registerNButton(keymap_id, this);
-        }
 
         anchors.centerIn: parent
         width: parent.width * 1.3
@@ -45,12 +71,6 @@ Rectangle {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
         hoverEnabled: !Emu.isMobile()
-
-        onStateChanged: {
-            parent.active = state || containsMouse;
-
-            Emu.keypadStateChanged(parent.keymap_id, state);
-        }
 
         onContainsMouseChanged: {
             parent.active = state || containsMouse;
@@ -64,10 +84,10 @@ Rectangle {
                 if(!fixable)
                     state = true;
             }
-            else if(fixable == state) // Right button
+            else if(fixable == parent.state) // Right button
             {
                 fixable = !fixable;
-                state = !state;
+                parent.state = !parent.state;
             }
         }
 
@@ -76,7 +96,7 @@ Rectangle {
 
             if(mouse.button == Qt.LeftButton
                     && !fixable)
-                state = false;
+                parent.state = false;
         }
     }
 }
